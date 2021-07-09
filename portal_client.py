@@ -41,14 +41,29 @@ class PortalClient:
             self.conn.close()
 
     def get(self, path):
-        self._open_conn()
         url = urljoin(self.endpoint, path)
         o = urlparse(url)
         headers = {'Authorization': f'Bearer {self.api_key}'}
         print(f'GET {o.path}', file=sys.stderr)
+        self._open_conn()
         self.conn.request('GET', o.path, headers=headers)
         r = self.conn.getresponse()
         if r.status != 200:
+            raise Exception((r.status, r.reason))
+        content = r.read()
+        return json.loads(content)
+
+    def post(self, path, obj):
+        content = json.dumps(obj, separators=',:')
+        url = urljoin(self.endpoint, path)
+        o = urlparse(url)
+        headers = {'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'}
+        print(f'POST {o.path}\n{content}', file=sys.stderr)
+        self._open_conn()
+        self.conn.request('POST', o.path, content, headers=headers)
+        r = self.conn.getresponse()
+        if not (200 <= r.status < 300):
             raise Exception((r.status, r.reason))
         content = r.read()
         return json.loads(content)
@@ -59,8 +74,8 @@ class PortalClient:
     def getproblem(self, n):
         return self.get(f'/api/problems/{n}')
 
-    def getproblems(self):
-        return self.get(f'/api/problems')
+    def post_solution(self, n, sol):
+        return self.post(f'/api/problems/{n}/solutions', sol)
 
 
 def hello():
@@ -78,9 +93,22 @@ def grab_problems(start, stop):
             time.sleep(0.25)
 
 
+def solve(n):
+    sol = { "vertices": [
+    [21, 28], [31, 28], [31, 87], [29, 41], [44, 43], [58, 70],
+    [38, 79], [32, 31], [36, 50], [39, 40], [66, 77], [42, 29],
+    [46, 49], [49, 38], [39, 57], [69, 66], [41, 70], [39, 60],
+    [42, 25], [40, 35]
+    ]}
+
+    with PortalClient() as cli:
+        cli.post_solution(n, sol)
+
+
 def main(*args):
     # hello()
     # grab_problems(1, 60)
+    solve(1)
     pass
 
 

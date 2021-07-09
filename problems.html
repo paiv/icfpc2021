@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <title></title>
+
+<style media="screen">
+:root {--bg:#fff;--fg:#000;}
+@media (prefers-color-scheme:dark) {:root {--bg:#202124;--fg:#f1f3f4;}}
+body, body * {background:var(--bg); color:var(--fg);}
+
+div.input input { width:4em; }
+div.error { color:red; }
+svg {margin: 2em; stroke:var(--fg); border:1px solid #777}
+</style>
+</head>
+<body>
+
+<div class="input">
+<form onsubmit="return openFromInput()">
+    spec/problems/<input type="text" id="pid"/><button>Open</button>
+</form>
+</div>
+
+<div class="error">
+    <span id="err"></span>
+</div>
+
+<div class="problem">
+    <div id="gfx">
+    </div>
+</div>
+
+<script type="text/javascript" src="svg.min.js"></script>
+<script type="text/javascript">
+function renderProblem(problem) {
+    let el = document.getElementById('err')
+    el.innerText = ''
+    document.getElementById('gfx').innerHTML = ''
+    let draw = SVG().addTo('#gfx').size(400, 400)
+    let w = Math.ceil(Math.max(...problem.hole.flat()) / 100) * 100
+    draw.viewbox(0, 0, w, w)
+    let hole = draw.group()
+    hole.polygon(problem.hole)
+    const figcolor = '#f0f'
+    let fig = draw.group()
+    let vs = problem.figure.vertices
+    for (const [x,y] of vs) {
+        let c = fig.circle(1).center(x, y)
+        c.fill(figcolor).stroke(figcolor)
+    }
+    for (const [a,b] of problem.figure.edges) {
+        let pa = vs[a]
+        let pb = vs[b]
+        let c = fig.line(...pa, ...pb)
+        c.stroke(figcolor)
+    }
+}
+function renderError(err) {
+    document.getElementById('gfx').innerHTML = ''
+    let el = document.getElementById('err')
+    el.innerText = err
+}
+function openFromInput() {
+    let pid = document.getElementById('pid').value.trim()
+    fetch('spec/problems/' + pid + '.json')
+    .then(r => r.json())
+    .then(data => renderProblem(data))
+    .catch(err => renderError(err))
+    return false
+}
+</script>
+</body>
+</html>
