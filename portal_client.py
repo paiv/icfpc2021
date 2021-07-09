@@ -94,26 +94,27 @@ def grab_problems(start, stop):
 
 
 def solve(n):
-    sol = { "vertices": [
-    [21, 28], [31, 28], [31, 87], [29, 41], [44, 43], [58, 70],
-    [38, 79], [32, 31], [36, 50], [39, 40], [66, 77], [42, 29],
-    [46, 49], [49, 38], [39, 57], [69, 66], [41, 70], [39, 60],
-    [42, 25], [40, 35]
-    ]}
+    path = Path(__file__).with_name('solutions') / f'{n}.json'
+    with open(path) as fp:
+        sol = json.load(fp)
 
     with PortalClient() as cli:
         cli.post_solution(n, sol)
 
 
-def main(*args):
+def main(solution=None):
     # hello()
     # grab_problems(1, 60)
-    solve(1)
-    pass
+    if solution:
+        solve(solution)
 
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='')
+    parser = argparse.ArgumentParser(description='Portal client')
+    subp = parser.add_subparsers()
+    submit = subp.add_parser('submit', help='Submit solution N')
+    submit.add_argument('solution', metavar='N', type=int, help='Solution number N')
     args = parser.parse_args()
-    main(args)
+
+    main(solution=args.solution)

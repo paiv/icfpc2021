@@ -41,12 +41,14 @@ main(int argc, char const *argv[]) {
     read_line(fig_edges);
     read_value(epsilon);
 
-    u32 solution[] = {
-    21, 28, 31, 28, 31, 87, 29, 41, 44, 43, 58, 70,
-    38, 79, 32, 31, 36, 50, 39, 40, 66, 77, 42, 29,
-    46, 49, 49, 38, 39, 57, 69, 66, 41, 70, 39, 60,
-    42, 25, 40, 35 };
-    write(STDOUT_FILENO, solution, sizeof(solution));
+    vector<u32> solution;
+    for (point& pt : fig_vertices) {
+        solution.push_back(pt.x);
+        solution.push_back(pt.y);
+    }
+    u32* soldata = solution.data();
+    u32 solsize = solution.size() * sizeof(u32);
+    write(STDOUT_FILENO, soldata, solsize);
 
     return 0;
 }

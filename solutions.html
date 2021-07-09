@@ -19,6 +19,7 @@ svg {margin: 2em; stroke:var(--fg); border:1px solid #777}
 <div class="input">
 <form onsubmit="return openFromInput()">
     solutions/<input type="text" id="pid"/><button>Open</button>
+    <button onclick="return exportSolution()">Copy</button>
 </form>
 </div>
 
@@ -31,38 +32,105 @@ svg {margin: 2em; stroke:var(--fg); border:1px solid #777}
     </div>
 </div>
 
-<script type="text/javascript" src="svg.min.js"></script>
+<script type="text/javascript" src="js/svg.min.js"></script>
+<script type="text/javascript" src="js/svg.draggable.min.js"></script>
 <script type="text/javascript">
 var Draw = undefined
 var Problem = undefined
+var Solution = undefined
+var EdgesGroup = undefined
+var RangeGroup = undefined
+const FigVertexColor = 'rgba(0,255,255,1)'
+const FigEdgeColor = 'rgba(0,255,255,0.5)'
+const FigErrorColor = 'rgba(255,0,0,0.7)'
+const RangeColor = 'rgba(255,0,255,0.2)'
 function renderProblem(problem) {
     Problem = problem
     let el = document.getElementById('err')
     el.innerText = ''
     document.getElementById('gfx').innerHTML = ''
-    draw = SVG().addTo('#gfx').size(400, 400)
+    let draw = SVG().addTo('#gfx').size(720, 720)
     Draw = draw
-    let w = Math.ceil(Math.max(...problem.hole.flat()) / 100) * 100
-    draw.viewbox(0, 0, w, w)
+    let w = Math.ceil(Math.max(...problem.hole.flat().concat(problem.figure.vertices.flat())) / 10) * 10
+    draw.viewbox(-10, -10, w+20, w+20)
     let hole = draw.group()
     hole.polygon(problem.hole)
 }
 function renderSolution(solution) {
-    problem = Problem
-    draw = Draw
-    const figcolor = '#f0f'
-    let fig = draw.group()
+    Solution = solution
+    let problem = Problem
+    let draw = Draw
     let vs = solution.vertices
-    for (const [x,y] of vs) {
-        let c = fig.circle(1).center(x, y)
-        c.fill(figcolor).stroke(figcolor)
-    }
+    let range = RangeGroup = draw.group()
+    let edges = EdgesGroup = draw.group()
     for (const [a,b] of problem.figure.edges) {
         let pa = vs[a]
         let pb = vs[b]
-        let c = fig.line(...pa, ...pb)
-        c.stroke(figcolor)
+        let c = edges.line(...pa, ...pb)
+        c.stroke(FigEdgeColor)
     }
+    let fig = draw.group()
+    for (const [i, [x,y]] of vs.entries()) {
+        let c = fig.circle(1).center(x, y)
+        c.fill(FigVertexColor).stroke(FigVertexColor)
+        c.draggable()
+        c.on('dragmove.namespace', e => {
+            const { handler, box } = e.detail
+            e.preventDefault()
+            let x = box.cx - (box.cx % 1)
+            let y = box.cy - (box.cy % 1)
+            handler.move(x - box.w/2, y - box.h/2)
+            solution.vertices[i] = [x, y]
+            updateSolution(solution, i)
+        })
+    }
+}
+function updateSolution(solution, dragIndex) {
+    let problem = Problem
+    let draw = Draw
+    let ranges = RangeGroup
+    let edges = EdgesGroup
+    ranges.clear()
+    edges.clear()
+    let vs = solution.vertices
+    for (const [i,[a,b]] of problem.figure.edges.entries()) {
+        let pa = vs[a]
+        let pb = vs[b]
+        let c = edges.line(...pa, ...pb)
+        let valid = validateEdge(i, pa, pb, problem.epsilon)
+        c.stroke(valid ? FigEdgeColor : FigErrorColor)
+    }
+    // const [ax, ay] = vs[dragIndex]
+    for (const v of edgesFromVertex(dragIndex)) {
+        const [r, dr] = rangeOfEdge(v)
+        for (const i of v) {
+            if (i !== dragIndex) {
+                const [px, py] = vs[i]
+                ranges.circle(r*2).center(px, py).fill('none').stroke({width:dr, color:RangeColor})
+            }
+        }
+    }
+}
+function validateEdge(index, pa, pb, epsilon) {
+    let [ia, ib] = Problem.figure.edges[index]
+    let oa = Problem.figure.vertices[ia]
+    let ob = Problem.figure.vertices[ib]
+    return Math.abs(distancesq(pa, pb) / distancesq(oa, ob) - 1) <= epsilon / 1000000
+}
+function distancesq(pa, pb) {
+    return (pa[0] - pb[0]) * (pa[0] - pb[0]) + (pa[1] - pb[1]) * (pa[1] - pb[1])
+}
+function edgesFromVertex(index) {
+    return Problem.figure.edges.filter(([a, b]) => a === index || b === index)
+}
+function rangeOfEdge(v) {
+    const [a, b] = v
+    let pa = Problem.figure.vertices[a]
+    let pb = Problem.figure.vertices[b]
+    let r = Math.sqrt(distancesq(pa, pb))
+    let min = (1000000 - Problem.epsilon) / 1000000 * r
+    let dr = Math.max(0.2, r - min)
+    return [r, dr]
 }
 function renderError(err) {
     document.getElementById('gfx').innerHTML = ''
@@ -80,6 +148,10 @@ function openFromInput() {
     .then(r => r.json())
     .then(data => renderSolution(data))
     .catch(err => renderError(err))
+    return false
+}
+function exportSolution() {
+    navigator.clipboard.writeText(JSON.stringify(Solution))
     return false
 }
 </script>
