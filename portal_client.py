@@ -2,10 +2,15 @@
 import configparser
 import http.client
 import json
+import logging
+import requests
 import sys
 import time
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 class PortalClient:
@@ -33,67 +38,62 @@ class PortalClient:
         self.close()
 
     def _open_conn(self):
-        o = urlparse(self.endpoint)
-        self.conn = http.client.HTTPSConnection(o.hostname, port=o.port)
+        if not self.conn:
+            self.conn = requests.Session()
 
     def close(self):
         if self.conn:
             self.conn.close()
+            self.conn = None
 
     def get(self, path):
         url = urljoin(self.endpoint, path)
-        o = urlparse(url)
         headers = {'Authorization': f'Bearer {self.api_key}'}
-        print(f'GET {o.path}', file=sys.stderr)
         self._open_conn()
-        self.conn.request('GET', o.path, headers=headers)
-        r = self.conn.getresponse()
-        if r.status != 200:
-            raise Exception((r.status, r.reason))
-        content = r.read()
-        return json.loads(content)
+        r = self.conn.get(url, headers=headers)
+        r.raise_for_status()
+        return r.json()
 
     def post(self, path, obj):
-        content = json.dumps(obj, separators=',:')
         url = urljoin(self.endpoint, path)
-        o = urlparse(url)
-        headers = {'Authorization': f'Bearer {self.api_key}',
-            'Content-Type': 'application/json'}
-        print(f'POST {o.path}\n{content}', file=sys.stderr)
+        headers = {'Authorization': f'Bearer {self.api_key}'}
         self._open_conn()
-        self.conn.request('POST', o.path, content, headers=headers)
-        r = self.conn.getresponse()
-        if not (200 <= r.status < 300):
-            raise Exception((r.status, r.reason))
-        content = r.read()
-        return json.loads(content)
+        r = self.conn.post(url, json=obj, headers=headers)
+        r.raise_for_status()
+        return r.json()
 
     def hello(self):
         return self.get('/api/hello')
 
-    def getproblem(self, n):
+    def get_problem(self, n):
         return self.get(f'/api/problems/{n}')
 
     def post_solution(self, n, sol):
         return self.post(f'/api/problems/{n}/solutions', sol)
 
+    def get_info(self, n, sid):
+        return self.get(f'/api/problems/{n}/solutions/{sid}')
 
-def hello():
+
+def gethello(args):
     with PortalClient() as cli:
         print(cli.hello())
 
 
-def grab_problems(start, stop):
+def grab_problems(args):
+    start = args.start
+    stop = args.stop or start + 1
     path = Path(__file__).with_name('spec') / 'problems'
     with PortalClient() as cli:
         for i in range(start, stop):
-            o = cli.getproblem(i)
+            o = cli.get_problem(i)
             with open(path / f'{i}.json', 'w') as fp:
                 json.dump(o, fp, separators=',:')
             time.sleep(0.25)
 
 
-def solve(n):
+def submit_solution(args):
+    n = args.solution
     path = Path(__file__).with_name('solutions') / f'{n}.json'
     with open(path) as fp:
         sol = json.load(fp)
@@ -102,19 +102,37 @@ def solve(n):
         cli.post_solution(n, sol)
 
 
-def main(solution=None):
-    # hello()
-    # grab_problems(1, 60)
-    if solution:
-        solve(solution)
+def getinfo(args):
+    n = args.problem
+    sid = args.pose
+    with PortalClient() as cli:
+        print(cli.get_info(n, sid))
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='Portal client')
+    def print_help(args):
+        parser.print_help()
+    parser.set_defaults(func=print_help)
     subp = parser.add_subparsers()
-    submit = subp.add_parser('submit', help='Submit solution N')
-    submit.add_argument('solution', metavar='N', type=int, help='Solution number N')
-    args = parser.parse_args()
 
-    main(solution=args.solution)
+    p = subp.add_parser('hello', help='Fetch hello')
+    p.set_defaults(func=gethello)
+
+    p = subp.add_parser('grab', help='Fetch problems')
+    p.add_argument('start', metavar='N', type=int, help='Problem number (range start)')
+    p.add_argument('stop', metavar='M', nargs='?', type=int, help='Problem number (range stop)')
+    p.set_defaults(func=grab_problems)
+
+    p = subp.add_parser('submit', help='Submit solution')
+    p.add_argument('solution', metavar='N', type=int, help='Solution number')
+    p.set_defaults(func=submit_solution)
+
+    p = subp.add_parser('info', help='Get information')
+    p.add_argument('problem', metavar='N', type=int, help='Problem number')
+    p.add_argument('pose', metavar='S', help='Pose submission id')
+    p.set_defaults(func=getinfo)
+
+    args = parser.parse_args()
+    args.func(args)
