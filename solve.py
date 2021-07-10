@@ -15,6 +15,7 @@ def solve(n):
         prob = json.load(fp)
 
     fn = Solutions / f'{n}.json'
+    soa = None
     if fn.is_file():
         with open(fn) as fp:
             soa = json.load(fp)
