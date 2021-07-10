@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 import configparser
 import http.client
-import json
+import json as json_parser
 import logging
-import requests
-import sys
 import time
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -15,6 +13,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 class PortalClient:
     def __init__(self, endpoint=None, api_key=None):
+        self.logger = logging.getLogger(self.__class__.__name__)
         self._read_env()
         if endpoint:
             self.endpoint = endpoint
@@ -39,28 +38,41 @@ class PortalClient:
 
     def _open_conn(self):
         if not self.conn:
-            self.conn = requests.Session()
+            o = urlparse(self.endpoint)
+            self.logger.debug(f'connect https://{o.netloc}')
+            self.conn = http.client.HTTPSConnection(o.hostname, port=o.port)
 
     def close(self):
         if self.conn:
+            o = urlparse(self.endpoint)
             self.conn.close()
             self.conn = None
+
+    def _request(self, method, url, json=None, headers=None):
+        body = json_parser.dumps(json, separators=',:') if json else None
+        o = urlparse(url)
+        self._open_conn()
+        self.logger.debug(f'{method} {o.path}')
+        self.conn.request(method, o.path, body=body, headers=headers)
+        r = self.conn.getresponse()
+        if not (200 <= r.status < 300):
+            raise Exception((r.status, r.reason))
+        chunked = r.headers['Content-Length'] is None
+        content = r.read()
+        if not content and chunked:
+            time.sleep(0.5)
+            content = r.read()
+        return json_parser.loads(content)
 
     def get(self, path):
         url = urljoin(self.endpoint, path)
         headers = {'Authorization': f'Bearer {self.api_key}'}
-        self._open_conn()
-        r = self.conn.get(url, headers=headers)
-        r.raise_for_status()
-        return r.json()
+        return self._request('GET', url, headers=headers)
 
     def post(self, path, obj):
         url = urljoin(self.endpoint, path)
         headers = {'Authorization': f'Bearer {self.api_key}'}
-        self._open_conn()
-        r = self.conn.post(url, json=obj, headers=headers)
-        r.raise_for_status()
-        return r.json()
+        return self._request('POST', url, json=obj, headers=headers)
 
     def hello(self):
         return self.get('/api/hello')
@@ -88,7 +100,7 @@ def grab_problems(args):
         for i in range(start, stop):
             o = cli.get_problem(i)
             with open(path / f'{i}.json', 'w') as fp:
-                json.dump(o, fp, separators=',:')
+                json_parser.dump(o, fp, separators=',:')
             time.sleep(0.25)
 
 
@@ -96,7 +108,7 @@ def submit_solution(args):
     n = args.solution
     path = Path(__file__).with_name('solutions') / f'{n}.json'
     with open(path) as fp:
-        sol = json.load(fp)
+        sol = json_parser.load(fp)
 
     with PortalClient() as cli:
         cli.post_solution(n, sol)
