@@ -20,6 +20,7 @@ svg {margin: 2em; stroke:var(--fg); border:1px solid #777}
 <form onsubmit="return openFromInput()">
     solutions/<input type="text" id="pid"/><button>Open</button>
     <button onclick="return exportSolution()">Copy</button>
+    <span id="diz"></span> dislikes
 </form>
 </div>
 
@@ -51,7 +52,9 @@ function renderProblem(problem) {
     document.getElementById('gfx').innerHTML = ''
     let draw = SVG().addTo('#gfx').size(720, 720)
     Draw = draw
-    let w = Math.ceil(Math.max(...problem.hole.flat().concat(problem.figure.vertices.flat())) / 10) * 10
+    let w = problem.hole.flat().concat(problem.figure.vertices.flat())
+    w = w.reduce((a, x) => x > a ? x : a)
+    w = Math.ceil(w / 10) * 10
     draw.viewbox(-10, -10, w+20, w+20)
     let hole = draw.group()
     hole.polygon(problem.hole)
@@ -82,8 +85,10 @@ function renderSolution(solution) {
             handler.move(x - box.w/2, y - box.h/2)
             solution.vertices[i] = [x, y]
             updateSolution(solution, i)
+            updateDislikes(solution)
         })
     }
+    updateDislikes(solution)
 }
 function updateSolution(solution, dragIndex) {
     let problem = Problem
@@ -100,7 +105,6 @@ function updateSolution(solution, dragIndex) {
         let valid = validateEdge(i, pa, pb, problem.epsilon)
         c.stroke(valid ? FigEdgeColor : FigErrorColor)
     }
-    // const [ax, ay] = vs[dragIndex]
     for (const v of edgesFromVertex(dragIndex)) {
         const [r, dr] = rangeOfEdge(v)
         for (const i of v) {
@@ -110,6 +114,14 @@ function updateSolution(solution, dragIndex) {
             }
         }
     }
+}
+function updateDislikes(solution) {
+    let problem = Problem
+    let vs = solution.vertices
+    let score = problem.hole.map(pa =>
+        vs.map(pb => distancesq(pa, pb)).reduce((a, d) => d < a ? d : a)
+    ).reduce((a, x) => a + x)
+    document.getElementById('diz').innerText = score
 }
 function validateEdge(index, pa, pb, epsilon) {
     let [ia, ib] = Problem.figure.edges[index]
