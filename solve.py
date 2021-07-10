@@ -14,7 +14,12 @@ def solve(n):
     with open(Problems / f'{n}.json') as fp:
         prob = json.load(fp)
 
-    prob = encode_problem(prob)
+    fn = Solutions / f'{n}.json'
+    if fn.is_file():
+        with open(fn) as fp:
+            soa = json.load(fp)
+
+    prob = encode_problem(prob, soa)
     sol = run_solver(prob)
     sol = decode_solution(sol)
 
@@ -22,13 +27,15 @@ def solve(n):
         json.dump(sol, fp)
 
 
-def encode_problem(problem):
+def encode_problem(problem, soa):
     eol = struct.pack('<ii', -1, -1)
     so = b''
     so += b''.join(struct.pack('<II', *p) for p in problem['hole']) + eol
     so += b''.join(struct.pack('<II', *p) for p in problem['figure']['vertices']) + eol
     so += b''.join(struct.pack('<II', *p) for p in problem['figure']['edges']) + eol
-    so += struct.pack('<I', problem['epsilon'])
+    if soa:
+        so += b''.join(struct.pack('<II', *p) for p in soa['vertices']) + eol
+    so += struct.pack('<Ii', problem['epsilon'], -1)
     return so
 
 
