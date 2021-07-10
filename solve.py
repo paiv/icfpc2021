@@ -23,8 +23,9 @@ def solve(n):
     sol = run_solver(prob)
     sol = decode_solution(sol)
 
-    with open(Solutions / f'{n}.json', 'w') as fp:
-        json.dump(sol, fp)
+    if sol:
+        with open(Solutions / f'{n}.json', 'w') as fp:
+            json.dump(sol, fp)
 
 
 def encode_problem(problem, soa):
@@ -42,8 +43,8 @@ def encode_problem(problem, soa):
 def decode_solution(solution):
     n = len(solution) // 4
     sol = struct.unpack(f'<{n}I', solution)
-    sol = {'vertices': list(zip(sol[0::2], sol[1::2]))}
-    return sol
+    if sol:
+        return {'vertices': list(zip(sol[0::2], sol[1::2]))}
 
 
 def run_solver(problem):

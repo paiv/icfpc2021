@@ -3,10 +3,13 @@
 #include <vector>
 
 
+using std::min;
 using std::vector;
 
 typedef uint8_t u8;
 typedef uint32_t u32;
+typedef uint64_t u64;
+typedef double r64;
 
 
 typedef struct {
@@ -69,17 +72,40 @@ write_solution(vector<point>& solution) {
     write(STDOUT_FILENO, soldata, solsize);
 }
 
+static u32
+distancesq(point& pa, point& pb) {
+    return (pa.x - pb.x) * (pa.x - pb.x) + (pa.y - pb.y) * (pa.y - pb.y);
+}
+
+static u64
+dislikes(problem_t& problem, vector<point>& solution) {
+    u64 score = 0;
+    for (auto& pa : problem.hole) {
+        u32 mindist = -1;
+        for (auto& pb : solution) {
+            mindist = min(mindist, distancesq(pa, pb));
+        }
+        score += mindist;
+    }
+    return score;
+}
 
 static vector<point>
-stub_solver(problem_t& problem) {
+solver0(problem_t& problem) {
     return problem.fig_vertices;
+}
+
+
+static vector<point>
+solver1(problem_t& problem) {
+    return {};
 }
 
 
 int
 main(int argc, char const *argv[]) {
     problem_t problem = read_problem();
-    auto solution = stub_solver(problem);
+    auto solution = solver0(problem);
     write_solution(solution);
 
     return 0;
