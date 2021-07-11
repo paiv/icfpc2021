@@ -183,18 +183,14 @@ solver0(problem_t& problem) {
 }
 
 
-static vector<point>
-solver1(problem_t& problem) {
-    u32 soa_score = problem.soa.size() ? dislikes(problem, problem.soa) : -1;
-    fprintf(stderr, "soa score: %u\n", soa_score);
-    return {};
-}
+#include "brute.cpp"
+auto solver = brute;
 
 
 int
 main(int argc, char const *argv[]) {
     problem_t problem = read_problem();
-    auto solution = solver1(problem);
+    auto solution = solver(problem);
     write_solution(solution);
 
     return 0;
