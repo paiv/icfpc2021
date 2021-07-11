@@ -46,6 +46,7 @@ const FigEdgeColor = 'rgba(0,255,255,0.5)'
 const FigErrorColor = 'rgba(255,0,0,0.5)'
 const RangeColor = 'rgba(255,0,255,0.2)'
 const GridColor = 'rgba(80,80,80,1)'
+const BonusColor = 'rgba(255,255,0,0.3)'
 function renderProblem(problem) {
     Problem = problem
     let el = document.getElementById('err')
@@ -60,6 +61,12 @@ function renderProblem(problem) {
 
     let hole = draw.group()
     hole.polygon(problem.hole)
+
+    let bonuses = draw.group()
+    for (let bonus of problem.bonuses) {
+        let c = bonuses.circle(3).center(...bonus.position)
+        c.fill(BonusColor).stroke('none')
+    }
 
     let grid = draw.group()
     for (var y = 0; y < w; ++y) {

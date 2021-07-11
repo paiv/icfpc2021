@@ -18,7 +18,7 @@ def main():
     path = Path(__file__).with_name('spec') / 'problems'
     print('digraph {')
     for a, b, t in scan_bonuses(path):
-        print(f'p{a} -> p{b} [label="{t}"];')
+        print(f'{a} -> {b} [label="{t.lower()}"];')
     print('}')
 
 
