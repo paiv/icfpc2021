@@ -7,13 +7,14 @@ using std::min;
 using std::vector;
 
 typedef uint8_t u8;
+typedef int32_t i32;
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef double r64;
 
 
 typedef struct {
-    u32 x, y;
+    i32 x, y;
 } point;
 
 
@@ -30,8 +31,8 @@ static void
 read_line(vector<point>& vec) {
     point pt;
     while (read(STDIN_FILENO, &pt, sizeof(pt)) > 0) {
-        if (pt.y == 0xffffffff) {
-            if (pt.x != 0xffffffff) {
+        if (pt.y == -0x80000000) {
+            if (pt.x != -0x80000000) {
                 vec.push_back(pt);
             }
             break;
@@ -55,7 +56,7 @@ read_problem() {
     read_line(problem.fig_vertices);
     read_line(problem.fig_edges);
     read_line(problem.soa);
-    if (problem.soa[0].y == 0xffffffff) {
+    if (problem.soa[0].y == -0x80000000) {
         problem.epsilon = problem.soa[0].x;
         problem.soa.clear();
     }

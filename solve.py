@@ -30,14 +30,14 @@ def solve(n):
 
 
 def encode_problem(problem, soa):
-    eol = struct.pack('<ii', -1, -1)
+    eol = struct.pack('<ii', -0x80000000, -0x80000000)
     so = b''
-    so += b''.join(struct.pack('<II', *p) for p in problem['hole']) + eol
-    so += b''.join(struct.pack('<II', *p) for p in problem['figure']['vertices']) + eol
-    so += b''.join(struct.pack('<II', *p) for p in problem['figure']['edges']) + eol
+    so += b''.join(struct.pack('<ii', *p) for p in problem['hole']) + eol
+    so += b''.join(struct.pack('<ii', *p) for p in problem['figure']['vertices']) + eol
+    so += b''.join(struct.pack('<ii', *p) for p in problem['figure']['edges']) + eol
     if soa:
-        so += b''.join(struct.pack('<II', *p) for p in soa['vertices']) + eol
-    so += struct.pack('<Ii', problem['epsilon'], -1)
+        so += b''.join(struct.pack('<ii', *p) for p in soa['vertices']) + eol
+    so += struct.pack('<ii', problem['epsilon'], -0x80000000)
     return so
 
 
