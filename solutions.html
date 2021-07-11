@@ -45,6 +45,7 @@ const FigVertexColor = 'rgba(0,255,255,1)'
 const FigEdgeColor = 'rgba(0,255,255,0.5)'
 const FigErrorColor = 'rgba(255,0,0,0.5)'
 const RangeColor = 'rgba(255,0,255,0.2)'
+const GridColor = 'rgba(80,80,80,1)'
 function renderProblem(problem) {
     Problem = problem
     let el = document.getElementById('err')
@@ -55,9 +56,115 @@ function renderProblem(problem) {
     let w = problem.hole.flat().concat(problem.figure.vertices.flat())
     w = w.reduce((a, x) => x > a ? x : a)
     w = Math.ceil(w / 10) * 10
-    draw.viewbox(-10, -10, w+20, w+20)
+    draw.viewbox(-5, -5, w+10, w+10)
+
     let hole = draw.group()
     hole.polygon(problem.hole)
+
+    let grid = draw.group()
+    for (var y = 0; y < w; ++y) {
+        for (var x = 0; x < w; ++x) {
+            if (windingContains(problem.hole, [x, y])) {
+                let c = grid.circle(0.4).center(x, y)
+                c.fill(GridColor).stroke('none')
+            }
+        }
+    }
+}
+function polygonHasPoint(polygon, point) {
+    let x = point[0]
+    let y = point[1]
+    let count = 0
+    for (let i = 0; i < polygon.length; ++i) {
+        let pa = polygon[i]
+        let pb = polygon[(i+1) % polygon.length]
+        if (pa[0] === x && pa[1] === y) { return true; }
+        if (pb[0] === x && pb[1] === y) { return true; }
+        if (pa[1] > pb[1]) {
+            let t = pa
+            pa = pb
+            pb = t
+        }
+        if (y <= pa[1] || y > pb[1]) { continue; }
+        if (pa[0] <= pb[0]) {
+            if (x > pb[0]) { continue; }
+            if (x < pa[0]) {
+                ++count
+                continue
+            }
+        }
+        else {
+            if (x > pa[0]) { continue; }
+            if (x < pb[0]) {
+                ++count
+                continue
+            }
+        }
+        if (x === pa[0]) {
+            if (pa[0] === pb[0]) { return true; }
+        }
+        else {
+            let qp = Math.abs(x - pa[0]) > Number.MIN_VALUE ? (y - pa[1]) / (x - pa[0]) : Number.MAX_VALUE
+            let qb = Math.abs(pb[0] - pa[0]) > Number.MIN_VALUE ? (pb[1] - pa[1]) / (pb[0] - pa[0]) : Number.MAX_VALUE
+            if (qp >= qb) {
+                ++count
+            }
+        }
+    }
+    return (count % 2) != 0
+}
+function windingContains(polygon, point) {
+    let x = point[0]
+    let y = point[1]
+    let count = 0
+    for (let i = 0; i < polygon.length; ++i) {
+        let pa = polygon[i]
+        let pb = polygon[(i+1) % polygon.length]
+        let dt = (y - pa[1]) * (pb[0] - pa[0]) - (x - pa[0]) * (pb[1] - pa[1])
+        // if (dt === 0) {
+        //     return true
+        // }
+        if (y >= pa[1]) {
+            if (y < pb[1]) {
+                if (dt > 0) {
+                    ++count
+                }
+            }
+        }
+        else if (y >= pb[1]) {
+            if (dt < 0) {
+                --count
+            }
+        }
+    }
+    return count != 0
+}
+function rosettaContains(bounds, pt) {
+    let x = pt[0]
+    let y = pt[1]
+    var count = 0;
+    for (var b = 0; b < bounds.length; b++) {
+        var vertex1 = bounds[b];
+        var vertex2 = bounds[(b + 1) % bounds.length];
+        if (west(vertex1, vertex2, x, y))
+            ++count;
+    }
+    return count % 2;
+
+    function west(A, B, x, y) {
+        if (A[1] <= B[1]) {
+            if (y <= A[1] || y > B[1] ||
+                x >= A[0] && x >= B[0]) {
+                return false;
+            } else if (x < A[0] && x < B[0]) {
+                return true;
+            } else {
+                return (y - A[1]) / (x - A[0]) > (B[1] - A[1]) / (B[0] - A[0]);
+            }
+        } else {
+            return west(B, A, x, y);
+        }
+    }
 }
 function renderSolution(solution) {
     Solution = solution
