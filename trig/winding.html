@@ -27,19 +27,19 @@ const FigVertexColor = 'rgba(0,255,255,1)'
 const FigEdgeColor = 'rgba(0,255,255,0.5)'
 const GridColor = 'rgba(80,80,80,1)'
 let Model = {
-    size: [100, 100],
-    edge: [[20, 20], [80, 80]],
-    point: [20, 50],
+    size: [50, 50],
+    edge: [[10, 10], [40, 40]],
+    point: [10, 30],
 }
 function setupApp() {
     let draw = SVG().addTo('#gfx').size(700, 700)
-    draw.viewbox(-5, -5, Model.size[0]+10, Model.size[1]+10)
+    draw.viewbox(0, 0, Model.size[0], Model.size[1])
 
     let graph = GraphingGroup = draw.group()
 
     let grid = draw.group()
-    for (var y = 0; y < Model.size[1]; ++y) {
-        for (var x = 0; x < Model.size[0]; ++x) {
+    for (var y = 0; y < Model.size[1]+1; ++y) {
+        for (var x = 0; x < Model.size[0]+1; ++x) {
             let c = grid.circle(0.4).center(x, y)
             c.fill(GridColor).stroke('none')
         }

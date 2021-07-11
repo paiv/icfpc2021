@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <title>Line segments intersection</title>
+
+<style media="screen">
+:root {--bg:#fff;--fg:#000;}
+@media (prefers-color-scheme:dark) {:root {--bg:#202124;--fg:#f1f3f4;}}
+body, body * {background:var(--bg); color:var(--fg);}
+div.input input {width:4em;}
+svg {margin: 2em; stroke:var(--fg); border:1px solid #777;}
+</style>
+</head>
+<body>
+
+<div id="gfx">
+</div>
+
+<script type="text/javascript" src="js/svg.min.js"></script>
+<script type="text/javascript" src="js/svg.draggable.min.js"></script>
+<script type="text/javascript">
+let EdgesLayer = undefined
+let VerticesLayer = undefined
+let GridLayer = undefined
+const VertexColor = 'rgba(0,255,255,0.75)'
+const EdgeColor = 'rgba(0,255,255,0.75)'
+const ErrColor = 'rgba(255,0,0,0.75)'
+const GridColor = 'rgba(127,127,127,1)'
+let Model = {
+    boardSize: [50, 50],
+    segment1: [],
+    segment2: [],
+}
+function randomPoint() {
+    let x = Math.floor(Math.random() * Model.boardSize[0])
+    let y = Math.floor(Math.random() * Model.boardSize[1])
+    return [x, y]
+}
+function rebuildModel() {
+    Model.segment1 = [randomPoint(), randomPoint()]
+    Model.segment2 = [randomPoint(), randomPoint()]
+
+    let fig = VerticesLayer
+    fig.clear()
+    for (let edge of [Model.segment1, Model.segment2]) {
+        for (const [i,[x,y]] of edge.entries()) {
+            let c = fig.circle(1).center(x, y)
+            c.fill(VertexColor).stroke(VertexColor)
+            c.draggable()
+            c.on('dragmove.namespace', e => {
+                const { handler, box } = e.detail
+                e.preventDefault()
+                let x = Math.floor(box.cx)
+                let y = Math.floor(box.cy)
+                handler.move(x - box.w/2, y - box.h/2)
+                edge[i] = [x, y]
+                updateView()
+            })
+        }
+    }
+
+    let grid = GridLayer
+    grid.clear()
+    for (var y = 0; y < Model.boardSize[1]+1; ++y) {
+        for (var x = 0; x < Model.boardSize[0]+1; ++x) {
+            let c = grid.circle(0.4).center(x, y)
+            c.fill(GridColor).stroke('none')
+        }
+    }
+
+    updateView()
+}
+function setupApp() {
+    let draw = SVG().addTo('#gfx').size(700, 700)
+    draw.viewbox(0, 0, Model.boardSize[0], Model.boardSize[1])
+
+    EdgesLayer = draw.group()
+    GridLayer = draw.group()
+    VerticesLayer = draw.group()
+
+    rebuildModel()
+}
+function updateView() {
+    let edges = EdgesLayer
+    edges.clear()
+    let xpt = segmentsIntersect(Model.segment1, Model.segment2)
+    let color = xpt ? ErrColor : EdgeColor
+    for (let edge of [Model.segment1, Model.segment2]) {
+        let c = edges.line(...edge[0], ...edge[1])
+        c.stroke(color)
+    }
+    if (xpt) {
+        let c = edges.circle(2).center(...xpt)
+        c.fill('#f0f').stroke('none')
+    }
+}
+function segmentsIntersect(ab, cd) {
+    let [[ax, ay], [bx, by]] = ab
+    let [[cx, cy], [dx, dy]] = cd
+    let detA = (dx - cx) * (by - ay) - (bx - ax) * (dy - cy)
+    if (detA == 0) { return false; }
+    let detS = (dx - cx) * (cy - ay) - (cx - ax) * (dy - cy)
+    let detT = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay)
+    let s = detS / detA
+    let t = detT / detA
+    if (s > 0 && s < 1 && t > 0 && t < 1) {
+        let x = ax + s * (bx - ax)
+        let y = ay + s * (by - ay)
+        return [x, y]
+    }
+}
+window.addEventListener('DOMContentLoaded', () => {
+    setupApp()
+})
+</script>
+</body>
+</html>
