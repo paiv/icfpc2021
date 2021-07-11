@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <title>Point on polygon, winding number</title>
+
+<style media="screen">
+:root {--bg:#fff;--fg:#000;}
+@media (prefers-color-scheme:dark) {:root {--bg:#202124;--fg:#f1f3f4;}}
+body, body * {background:var(--bg); color:var(--fg);}
+div.input input {width:4em;}
+svg {margin: 2em; stroke:var(--fg); border:1px solid #777; font:4px monospace; font-weight:100;}
+</style>
+</head>
+<body>
+
+<div class="input">
+    edges: <input type="number" name="nsides" id="nsides" value="5" oninput="rebuildModel()">
+</div>
+
+<div id="gfx">
+</div>
+
+<script type="text/javascript" src="js/svg.min.js"></script>
+<script type="text/javascript" src="js/svg.draggable.min.js"></script>
+<script type="text/javascript">
+let EdgesLayer = undefined
+let VerticesLayer = undefined
+let GridLayer = undefined
+const PoiColor = 'rgba(0,127,255,1)'
+const VertexColor = 'rgba(0,255,255,0.5)'
+const EdgeColor = 'rgba(0,255,255,0.5)'
+const GridColor = 'rgba(210,0,210,1)'
+let Model = {
+    boardSize: [50, 50],
+    polygon: [],
+}
+function rebuildModel() {
+    Model.polygon = []
+    let n = Number.parseInt(document.getElementById('nsides').value)
+    let ox = Math.floor(Model.boardSize[0] / 2)
+    let oy = Math.floor(Model.boardSize[1] / 2)
+    let r = Math.floor(Math.min(...Model.boardSize) * 0.4)
+    for (let i = 0; i < n; ++i) {
+        let q = Math.PI * 2 * i / n
+        let x = ox + Math.floor(r * Math.sin(q))
+        let y = oy + Math.floor(r * Math.cos(q))
+        Model.polygon.push([x, y])
+    }
+
+    let fig = VerticesLayer
+    fig.clear()
+    for (const [i,[x,y]] of Model.polygon.entries()) {
+        let c = fig.circle(1).center(x, y)
+        c.fill(VertexColor).stroke(VertexColor)
+        c.draggable()
+        c.on('dragmove.namespace', e => {
+            const { handler, box } = e.detail
+            e.preventDefault()
+            let x = Math.floor(box.cx)
+            let y = Math.floor(box.cy)
+            handler.move(x - box.w/2, y - box.h/2)
+            Model.polygon[i] = [x, y]
+            updateView()
+            repeatedGridUpdate()
+        })
+        c.on('dragend.namespace', e => {
+            updateGrid()
+        })
+    }
+
+    updateView()
+    updateGrid()
+}
+function setupApp() {
+    let draw = SVG().addTo('#gfx').size(700, 700)
+    draw.viewbox(0, 0, Model.boardSize[0], Model.boardSize[1])
+
+    EdgesLayer = draw.group()
+    GridLayer = draw.group()
+    VerticesLayer = draw.group()
+
+    rebuildModel()
+}
+function updateView() {
+    let edges = EdgesLayer
+    edges.clear()
+    edges.polygon(Model.polygon)
+}
+let lastGridUpdateTime = 0
+function repeatedGridUpdate() {
+    let now = performance.now()
+    if (now - lastGridUpdateTime > 300) {
+        lastGridUpdateTime = now
+        updateGrid()
+    }
+}
+function updateGrid() {
+    let grid = GridLayer
+    grid.clear()
+    let miny = Model.polygon.reduce((a, p) => p[1] < a ? p[1] : a, Number.POSITIVE_INFINITY)
+    let maxy = Model.polygon.reduce((a, p) => p[1] > a ? p[1] : a, Number.NEGATIVE_INFINITY)
+    let minx = Model.polygon.reduce((a, p) => p[0] < a ? p[0] : a, Number.POSITIVE_INFINITY)
+    let maxx = Model.polygon.reduce((a, p) => p[0] > a ? p[0] : a, Number.NEGATIVE_INFINITY)
+    for (var y = miny; y < maxy+1; ++y) {
+        for (var x = minx; x < maxx+1; ++x) {
+            if (polygonHasPoint(Model.polygon, [x, y])) {
+                let c = grid.circle(0.4).center(x, y)
+                c.fill(GridColor).stroke('none')
+            }
+        }
+    }
+}
+function polygonHasPoint(polygon, point) {
+    let x = point[0]
+    let y = point[1]
+    let count = 0
+    for (let i = 0; i < polygon.length; ++i) {
+        let pa = polygon[i]
+        let pb = polygon[(i+1) % polygon.length]
+        if (y >= pa[1] && y <= pb[1]) {
+            let dt = (y - pa[1]) * (pb[0] - pa[0]) - (x - pa[0]) * (pb[1] - pa[1])
+            if (dt > 0) {
+                if (y === pa[1] || y === pb[1]) {
+                    count += 0.5
+                }
+                else {
+                    count += 1
+                }
+            }
+            else if (dt == 0 && ((x >= pa[0] && x <= pb[0]) || (x <= pa[0] && x >= pb[0]))) {
+                return true
+            }
+        }
+        else if (y <= pa[1] && y >= pb[1]) {
+            let dt = (y - pa[1]) * (pb[0] - pa[0]) - (x - pa[0]) * (pb[1] - pa[1])
+            if (dt < 0) {
+                if (y === pa[1] || y === pb[1]) {
+                    count -= 0.5
+                }
+                else {
+                    count -= 1
+                }
+            }
+            else if (dt == 0 && ((x >= pa[0] && x <= pb[0]) || (x <= pa[0] && x >= pb[0]))) {
+                return true
+            }
+        }
+    }
+    return count != 0
+}
+window.addEventListener('DOMContentLoaded', () => {
+    setupApp()
+})
+</script>
+</body>
+</html>

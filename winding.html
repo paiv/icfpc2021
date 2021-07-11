@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8">
+    <title>Point on polygon, winding number</title>
+
+<style media="screen">
+:root {--bg:#fff;--fg:#000;}
+@media (prefers-color-scheme:dark) {:root {--bg:#202124;--fg:#f1f3f4;}}
+body, body * {background:var(--bg); color:var(--fg);}
+svg {margin: 2em; stroke:var(--fg); border:1px solid #777; font:4px monospace; font-weight:100;}
+</style>
+</head>
+<body>
+
+<div id="gfx">
+</div>
+
+<script type="text/javascript" src="js/svg.min.js"></script>
+<script type="text/javascript" src="js/svg.draggable.min.js"></script>
+<script type="text/javascript">
+let EdgesGroup = undefined
+let GraphingGroup = undefined
+let TextGroup = undefined
+const PoiColor = 'rgba(0,127,255,1)'
+const FigVertexColor = 'rgba(0,255,255,1)'
+const FigEdgeColor = 'rgba(0,255,255,0.5)'
+const GridColor = 'rgba(80,80,80,1)'
+let Model = {
+    size: [100, 100],
+    edge: [[20, 20], [80, 80]],
+    point: [20, 50],
+}
+function setupApp() {
+    let draw = SVG().addTo('#gfx').size(700, 700)
+    draw.viewbox(-5, -5, Model.size[0]+10, Model.size[1]+10)
+
+    let graph = GraphingGroup = draw.group()
+
+    let grid = draw.group()
+    for (var y = 0; y < Model.size[1]; ++y) {
+        for (var x = 0; x < Model.size[0]; ++x) {
+            let c = grid.circle(0.4).center(x, y)
+            c.fill(GridColor).stroke('none')
+        }
+    }
+
+    let edges = EdgesGroup = draw.group()
+    {
+        let pa = Model.edge[0]
+        let pb = Model.edge[1]
+        let c = edges.line(...pa, ...pb)
+        c.stroke(FigEdgeColor)
+    }
+
+    TextGroup = draw.group()
+
+    let fig = draw.group()
+    for (const [i, [x,y]] of Model.edge.entries()) {
+        let c = fig.circle(1).center(x, y)
+        c.fill(FigVertexColor).stroke(FigVertexColor)
+        c.draggable()
+        c.on('dragmove.namespace', e => {
+            const { handler, box } = e.detail
+            e.preventDefault()
+            let x = box.cx - (box.cx % 1)
+            let y = box.cy - (box.cy % 1)
+            handler.move(x - box.w/2, y - box.h/2)
+            Model.edge[i] = [x, y]
+            updateView()
+        })
+    }
+    {
+        let [x, y] = Model.point
+        let c = fig.circle(1).center(x, y)
+        c.fill(PoiColor).stroke(PoiColor)
+        c.draggable()
+        c.on('dragmove.namespace', e => {
+            const { handler, box } = e.detail
+            e.preventDefault()
+            let x = box.cx - (box.cx % 1)
+            let y = box.cy - (box.cy % 1)
+            handler.move(x - box.w/2, y - box.h/2)
+            Model.point = [x, y]
+            updateView()
+        })
+    }
+    updateView()
+}
+function updateView() {
+    let edges = EdgesGroup
+    edges.clear()
+    {
+        let pa = Model.edge[0]
+        let pb = Model.edge[1]
+        let c = edges.line(...pa, ...pb)
+        c.stroke(FigEdgeColor)
+    }
+    let graph = GraphingGroup
+    let texts = TextGroup
+    graph.clear()
+    texts.clear()
+    {
+        let [x, y] = Model.point
+        let [pa, pb] = Model.edge
+        let dt = (y - pa[1]) * (pb[0] - pa[0]) - (x - pa[0]) * (pb[1] - pa[1])
+        let xoff = Math.min(pa[0], pb[0])
+        let yoff = Math.min(pa[1], pb[1])
+        {
+            let w = Math.abs(pb[0] - pa[0])
+            let h = Math.abs(pb[1] - pa[1])
+            let c = graph.rect(w, h).move(xoff, yoff)
+            c.fill('rgba(0,0,255,0.45)').stroke('none')
+        }
+        if (y >= pa[1] && y <= pb[1]) {
+            let w = Math.abs(x - pa[0])
+            let h = Math.abs(pb[1] - pa[1])
+            let c = graph.rect(w, h).move(xoff, yoff)
+            c.fill('rgba(255,0,0,0.45)').stroke('none')
+
+            w = Math.abs(pb[0] - pa[0])
+            h = Math.abs(y - pa[1])
+            c = graph.rect(w, h).move(xoff, yoff)
+            c.fill('rgba(0,255,0,0.45)').stroke('none')
+        }
+        else if (y <= pa[1] && y >= pb[1]) {
+            let w = Math.abs(x - pa[0])
+            let h = Math.abs(pb[1] - pa[1])
+            let c = graph.rect(w, h).move(xoff, yoff)
+            c.fill('rgba(255,0,0,0.45)').stroke('none')
+
+            w = Math.abs(pb[0] - pa[0])
+            h = Math.abs(y - pa[1])
+            c = graph.rect(w, h).move(xoff, y)
+            c.fill('rgba(0,255,0,0.45)').stroke('none')
+        }
+        let tl = texts.plain('' + dt).stroke('none').fill({color:'var(--fg)', opacity:0.7}).move(xoff, yoff-5)
+    }
+}
+window.addEventListener('DOMContentLoaded', () => {
+    setupApp()
+})
+</script>
+</body>
+</html>
