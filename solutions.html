@@ -73,11 +73,13 @@ function renderProblem(problem) {
     let maxy = problem.hole.reduce((a, p) => p[1] > a ? p[1] : a, Number.NEGATIVE_INFINITY)
     let minx = problem.hole.reduce((a, p) => p[0] < a ? p[0] : a, Number.POSITIVE_INFINITY)
     let maxx = problem.hole.reduce((a, p) => p[0] > a ? p[0] : a, Number.NEGATIVE_INFINITY)
-    for (var y = miny; y < maxy+1; ++y) {
-        for (var x = minx; x < maxx+1; ++x) {
-            if (polygonHasPoint(problem.hole, [x, y])) {
-                let c = grid.circle(0.4).center(x, y)
-                c.fill(GridColor).stroke('none')
+    if ((maxx - minx) * (maxy - miny) < 100000) {
+        for (var y = miny; y < maxy+1; ++y) {
+            for (var x = minx; x < maxx+1; ++x) {
+                if (polygonHasPoint(problem.hole, [x, y])) {
+                    let c = grid.circle(0.4).center(x, y)
+                    c.fill(GridColor).stroke('none')
+                }
             }
         }
     }
