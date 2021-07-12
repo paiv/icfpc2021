@@ -11,6 +11,7 @@ https://icfpcontest2021.github.io/
 
 Interactive
 --
+https://paiv.github.io/icfpc2021/
 
 - [solve by hand](solutions.html)
 - [line segment intersection](trig/intersect.html)
