@@ -11,10 +11,16 @@ typedef uint8_t u8;
 typedef int32_t i32;
 typedef uint32_t u32;
 typedef float r32;
+typedef double r64;
 
 
-typedef struct {
-    i32 x, y;
+typedef union {
+    struct {
+        i32 x, y;
+    };
+    struct {
+        u32 a, b;
+    };
 } point;
 
 
@@ -148,6 +154,9 @@ segment_breaks_hole(problem_t& problem, point& pa, point& pb) {
 
 static u8
 valid_solution(problem_t& problem, vector<point>& solution) {
+    if (solution.size() != problem.fig_vertices.size()) {
+        return 0;
+    }
     auto& edges = problem.fig_edges;
     for (size_t i = 0; i < edges.size(); ++i) {
         auto& pa = solution[edges[i].x];
