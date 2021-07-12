@@ -20,13 +20,13 @@ def solve(n):
         with open(fn) as fp:
             soa = json.load(fp)
 
-    prob = encode_problem(prob, soa)
-    sol = run_solver(prob)
-    sol = decode_solution(sol)
-
-    if sol:
+    while True:
+        pro = encode_problem(prob, soa)
+        sol = run_solver(pro, timeout=60)
+        if not sol: break
+        soa = decode_solution(sol)
         with open(Solutions / f'{n}.json', 'w') as fp:
-            json.dump(sol, fp)
+            json.dump(soa, fp)
 
 
 def encode_problem(problem, soa):
@@ -48,9 +48,12 @@ def decode_solution(solution):
         return {'vertices': list(zip(sol[0::2], sol[1::2]))}
 
 
-def run_solver(problem):
-    p = subprocess.run([str(Solver)], input=problem, stdout=subprocess.PIPE, check=True)
-    return p.stdout
+def run_solver(problem, timeout=None):
+    try:
+        p = subprocess.run([str(Solver)], input=problem, stdout=subprocess.PIPE, check=True, timeout=timeout)
+        return p.stdout
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        pass
 
 
 def main(start, stop=None):

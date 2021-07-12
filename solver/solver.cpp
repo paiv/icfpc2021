@@ -1,8 +1,13 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <vector>
-#include <stdio.h>
 
+#if 0
+#include <stdio.h>
+#define debug_print(...) fprintf(stderr, __VA_ARGS__)
+#else
+#define debug_print(...)
+#endif
 
 using std::min;
 using std::vector;
@@ -12,6 +17,7 @@ typedef int32_t i32;
 typedef uint32_t u32;
 typedef float r32;
 typedef double r64;
+static const u32 u32_max = -1;
 
 
 typedef union {
@@ -202,5 +208,5 @@ main(int argc, char const *argv[]) {
     auto solution = solver(problem);
     write_solution(solution);
 
-    return 0;
+    return solution.size() ? 0 : 1;
 }

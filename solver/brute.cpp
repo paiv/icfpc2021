@@ -100,24 +100,24 @@ next_vertex_in_graph(vector<point>& edges, vector<u32>& path) {
 }
 
 
+static const u32 NOSTATE = 0x80000000;
+
+
 static void
 init_state(problem_t& problem, brute_search_state& state) {
     state.vertices = problem.fig_vertices;
-    state.vertex_state.resize(state.vertices.size());
+    state.vertex_state.resize(state.vertices.size(), NOSTATE);
 }
-
-
-static const u32 NOSTATE = 0x80000000;
 
 
 static u8
 next_valid_root(problem_t& problem, brute_search_state& state, brute_cache& cache, u32* vi, u32* ci, point* pt) {
-    fprintf(stderr, "next_valid_root %u %u\n", *vi, *ci);
+    debug_print("next_valid_root %u %u\n", *vi, *ci);
     u32 q = *ci + 1;
     if (q < problem.hole.size()) {
         *ci = q;
         *pt = problem.hole[q];
-        fprintf(stderr, "  (1) at %d,%d\n", problem.hole[q].x, problem.hole[q].y);
+        debug_print("  (1) at %d,%d\n", problem.hole[q].x, problem.hole[q].y);
         return 1;
     }
     u32 p = *vi + 1;
@@ -126,10 +126,10 @@ next_valid_root(problem_t& problem, brute_search_state& state, brute_cache& cach
         *vi = p;
         *ci = q;
         *pt = problem.hole[q];
-        fprintf(stderr, "  (2) at %d,%d\n", problem.hole[q].x, problem.hole[q].y);
+        debug_print("  (2) at %d,%d\n", problem.hole[q].x, problem.hole[q].y);
         return 1;
     }
-    fprintf(stderr, "not found\n");
+    debug_print("not found\n");
     return 0;
 }
 
@@ -154,6 +154,7 @@ visited_connected_vertex(problem_t& problem, brute_search_state& state, u32 vi) 
             }
         }
     }
+    debug_print("visited_connected_vertex for %u found %u\n", vi, closest);
     return closest;
 }
 
@@ -169,6 +170,7 @@ compression_range(point& pa, point& pb, u32 epsilon, r32* rmin, r32* rmax) {
 
 static u8
 is_valid_placement(problem_t& problem, brute_search_state& state, brute_cache& cache, u32 vi, point& pt) {
+    // debug_print("is_valid_placement for %u at %d,%d\n", vi, pt.x, pt.y);
     for (auto& edge : problem.fig_edges) {
         if (edge.a != vi && edge.b != vi) { continue; }
         u32 xo = edge.a;
@@ -180,12 +182,14 @@ is_valid_placement(problem_t& problem, brute_search_state& state, brute_cache& c
                 u32 odist = distancesq(problem.fig_vertices[xo], problem.fig_vertices[vi]);
                 u32 rdist = distancesq(state.vertices[xo], pt);
                 if (abs((r64)rdist / odist - 1) * 1000000 > problem.epsilon) {
+                    // debug_print("    nope. (%u / %u - 1) x 1M > epsilon %u\n", rdist, odist, problem.epsilon);
                     return 0;
                 }
                 if (segment_breaks_hole(problem, state.vertices[xo], pt)) {
+                    // debug_print("    nope. breaks edges\n");
                     return 0;
                 }
-                fprintf(stderr, "  valid [%d,%d] - [%d,%d]\n", pt.x, pt.y, state.vertices[xo].x, state.vertices[xo].y);
+                debug_print("  valid %u [%d,%d] - %u [%d,%d]\n", vi, pt.x, pt.y, xo, state.vertices[xo].x, state.vertices[xo].y);
             }
         }
     }
@@ -196,6 +200,7 @@ is_valid_placement(problem_t& problem, brute_search_state& state, brute_cache& c
 
 static u8
 next_valid_placement(problem_t& problem, brute_search_state& state, brute_cache& cache, u32* ovs, point* opt) {
+    debug_print("next_valid_placement\n");
     u32 vi = state.point_stack.back();
     u32 xo = visited_connected_vertex(problem, state, vi);
 
@@ -203,30 +208,38 @@ next_valid_placement(problem_t& problem, brute_search_state& state, brute_cache&
     point pb = problem.fig_vertices[vi];
     r32 rmin, rmax;
     compression_range(pa, pb, problem.epsilon, &rmin, &rmax);
+    debug_print("  compression range: %.4f min, %.4f max\n", rmin, rmax);
+    rmin /= sqrt(2);
 
-    u32 yomin = ceil(pa.y - rmax);
-    u32 yomax = floor(pa.y + rmax);
-    u32 yimin = floor(pa.y - rmin);
-    u32 yimax = ceil(pa.y + rmin);
-    u32 xomin = ceil(pa.x - rmax);
-    u32 xomax = floor(pa.x + rmax);
-    u32 ximin = floor(pa.x - rmin);
-    u32 ximax = ceil(pa.x + rmin);
+    pa = state.vertices[xo];
+    i32 yomin = ceil(pa.y - rmax);
+    i32 yomax = floor(pa.y + rmax);
+    i32 yimin = floor(pa.y - rmin);
+    i32 yimax = ceil(pa.y + rmin);
+    i32 xomin = ceil(pa.x - rmax);
+    i32 xomax = floor(pa.x + rmax);
+    i32 ximin = floor(pa.x - rmin);
+    i32 ximax = ceil(pa.x + rmin);
+    debug_print("  outer box: [x:%d, y:%d, w:%d, h:%d]\n", xomin, yomin, xomax-xomin+1, yomax-yomin+1);
+    debug_print("  inner box: [x:%d, y:%d, w:%d, h:%d]\n", ximin, yimin, ximax-ximin+1, yimax-yimin+1);
 
-    u32 yadj = *ovs / (yomax - yomin + 1);
+    u32 yadj = 0;
+    if (*ovs != NOSTATE) {
+        // yadj = *ovs / (yomax - yomin + 1);
+    }
 
     u32 count = 0;
-    for (u32 y = yomin + yadj; y <= yomax; ++y) {
-        for (u32 x = xomin; x <= xomax; ++x, ++count) {
-            if (count <= *ovs) { continue; }
+    for (i32 y = yomin + yadj; y <= yomax; ++y) {
+        for (i32 x = xomin; x <= xomax; ++x, ++count) {
+            if (count <= *ovs && *ovs != NOSTATE) { continue; }
             if (y > yimin && y < yimax) {
                 if (x > ximin && x < ximax) { continue; }
             }
-            point pt = {.a=x, .b=y};
+            point pt = {x, y};
             u32 pp = pack_point(pt);
             if (cache.valid_points.find(pp) != cache.valid_points.end()) {
                 if (is_valid_placement(problem, state, cache, vi, pt)) {
-                    fprintf(stderr, "placement [%d,%d]\n", pt.x, pt.y);
+                    debug_print("placement [%d,%d]\n", pt.x, pt.y);
                     *ovs = count;
                     *opt = pt;
                     return 1;
@@ -234,12 +247,14 @@ next_valid_placement(problem_t& problem, brute_search_state& state, brute_cache&
             }
         }
     }
+    debug_print("    none\n");
     return 0;
 }
 
 static brute_search_state
 next_state(problem_t& problem, brute_search_state& state, brute_cache& cache) {
     brute_search_state next_state = state;
+    next_state.score = 0;
 
     if (state.point_stack.size() == 0) {
         u32 vi = 0;
@@ -248,14 +263,15 @@ next_state(problem_t& problem, brute_search_state& state, brute_cache& cache) {
         next_state.vertices[vi] = problem.hole[ci];
         next_state.vertex_state[vi] = ci;
         next_state.point_stack.push_back(vi);
+        return next_state;
     }
-    else if (next_state.vertex_state[state.point_stack.back()] == NOSTATE || state.point_stack.size() == state.vertices.size()) {
+    else if (state.vertex_state[state.point_stack.back()] == NOSTATE || state.point_stack.size() == state.vertices.size()) {
         while (next_state.point_stack.size() > 0) {
             u32 vi = next_state.point_stack.back();
             u32 vs = next_state.vertex_state[vi];
             point pt;
             if (next_state.point_stack.size() == 1) {
-                if (next_valid_root(problem, state, cache, &vi, &vs, &pt)) {
+                if (next_valid_root(problem, next_state, cache, &vi, &vs, &pt)) {
                     next_state.point_stack.back() = vi;
                     next_state.root_vertex = vi;
                     next_state.vertex_state[vi] = vs;
@@ -263,11 +279,13 @@ next_state(problem_t& problem, brute_search_state& state, brute_cache& cache) {
                     break;
                 }
             }
-            else if (next_valid_placement(problem, state, cache, &vs, &pt)) {
+            else if (next_valid_placement(problem, next_state, cache, &vs, &pt)) {
                 next_state.vertex_state[vi] = vs;
                 next_state.vertices[vi] = pt;
                 break;
             }
+            debug_print("pop point_stack\n");
+            next_state.vertex_state[vi] = NOSTATE;
             next_state.point_stack.pop_back();
         }
     }
@@ -275,25 +293,19 @@ next_state(problem_t& problem, brute_search_state& state, brute_cache& cache) {
         u32 vi = next_vertex_in_graph(problem.fig_edges, state.point_stack);
         next_state.point_stack.push_back(vi);
         next_state.vertex_state[vi] = NOSTATE;
+        return next_state;
     }
 
     if (next_state.point_stack.size() == 0) {
-        fprintf(stderr, "terminal\n");
+        debug_print("terminal\n");
         next_state.is_terminal = 1;
         return next_state;
     }
 
-    // if (state.point_stack.size() < state.vertices.size()) {
-    //     return next_state;
-    // }
-    for (u32 s : state.vertex_state) {
-        if (s == NOSTATE) {
-            return next_state;
-        }
+    if (next_state.point_stack.size() == next_state.vertices.size()) {
+        next_state.score = get_score(problem, next_state.vertices);
+        debug_print("got new score %u\n", next_state.score);
     }
-
-    next_state.score = get_score(problem, next_state.vertices);
-    fprintf(stderr, "got new score %u\n", next_state.score);
 
     return next_state;
 }
@@ -302,6 +314,9 @@ next_state(problem_t& problem, brute_search_state& state, brute_cache& cache) {
 static vector<point>
 brute(problem_t& problem) {
     u32 soa_score = get_score(problem, problem.soa);
+    if (soa_score == u32_max) {
+        return {};
+    }
 
     brute_cache cache = {};
     cache.valid_points = all_points_of_polygon(problem.hole);
@@ -311,26 +326,32 @@ brute(problem_t& problem) {
 
     while (state.score <= soa_score && !state.is_terminal) {
         #if 1
-        fprintf(stderr, "state score %u (soa %u)\n", state.score, soa_score);
-        fprintf(stderr, "root %u, stack size %lu [", state.root_vertex, state.point_stack.size());
+        debug_print("state score %u (soa %u)\n", state.score, soa_score);
+        debug_print("root %u, stack size %lu [", state.root_vertex, state.point_stack.size());
         for (u32 p : state.point_stack) {
-            fprintf(stderr, "%u,", p);
+            debug_print("%u,", p);
         }
-        fprintf(stderr, "]\n");
-        fprintf(stderr, "vertices: [");
-        for (auto& p : state.vertices) {
-            fprintf(stderr, "[%d,%d],", p.x, p.y);
+        debug_print("]\n");
+        debug_print("vertices: [");
+        for (size_t i = 0; i < state.vertices.size(); ++i) {
+            if (state.vertex_state[i] == NOSTATE) {
+                debug_print("(na),");
+            }
+            else {
+                auto& p = state.vertices[i];
+                debug_print("[%d,%d],", p.x, p.y);
+            }
         }
-        fprintf(stderr, "]\n");
+        debug_print("]\n");
         #endif
 
         state = next_state(problem, state, cache);
     }
 
     if (state.score > soa_score) {
-        fprintf(stderr, "found solution\n");
+        debug_print("found solution\n");
         return state.vertices;
     }
-    fprintf(stderr, "found nothing\n");
+    debug_print("found nothing\n");
     return {};
 }
