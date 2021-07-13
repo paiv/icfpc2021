@@ -17,3 +17,4 @@ https://paiv.github.io/icfpc2021/
 - [line segment intersection](trig/intersect.html)
 - [point on polygon](trig/polygon.html)
 - [winding rule](trig/winding.html)
+- [graph of bonuses](spec/bonus_graph_v4.svg)
