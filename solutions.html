@@ -19,6 +19,7 @@ svg {margin: 2em; stroke:var(--fg); border:1px solid #777}
 <div class="input">
 <form onsubmit="return openFromInput()">
     solutions/<input type="text" id="pid"/><button>Open</button>
+    <button onclick="return resetToProblem()">Reset</button>
     <button onclick="return exportSolution()">Copy</button>
     <span id="diz"></span> dislikes
 </form>
@@ -39,6 +40,7 @@ svg {margin: 2em; stroke:var(--fg); border:1px solid #777}
 var Draw = undefined
 var Problem = undefined
 var Solution = undefined
+var VerticesGroup = undefined
 var EdgesGroup = undefined
 var RangeGroup = undefined
 const FigVertexColor = 'rgba(0,255,255,1)'
@@ -126,16 +128,22 @@ function renderSolution(solution) {
     Solution = solution
     let problem = Problem
     let draw = Draw
-    let vs = solution.vertices
+    if (RangeGroup) { RangeGroup.remove() }
+    if (EdgesGroup) { EdgesGroup.remove() }
+    if (VerticesGroup) { VerticesGroup.remove() }
     let range = RangeGroup = draw.group()
     let edges = EdgesGroup = draw.group()
+    let fig = VerticesGroup = draw.group()
+    range.clear()
+    edges.clear()
+    fig.clear()
+    let vs = solution.vertices
     for (const [a,b] of problem.figure.edges) {
         let pa = vs[a]
         let pb = vs[b]
         let c = edges.line(...pa, ...pb)
         c.stroke(FigEdgeColor)
     }
-    let fig = draw.group()
     for (const [i, [x,y]] of vs.entries()) {
         let c = fig.circle(1).center(x, y)
         c.fill(FigVertexColor).stroke(FigVertexColor)
@@ -223,6 +231,10 @@ function openFromInput() {
     .then(r => r.json())
     .then(data => renderSolution(data))
     .catch(err => renderError(err))
+    return false
+}
+function resetToProblem() {
+    renderSolution({vertices: Problem.figure.vertices.slice()})
     return false
 }
 function exportSolution() {
